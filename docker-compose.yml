@@ -1,0 +1,46 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:5000"
+    container_name: flaskapp
+    environment:
+      - DD_AGENT_HOST=datadog-simple-flask
+      - DD_SERVICE=flaskapp
+      - DD_ENV=python
+      - DD_VERSION=1.0
+      - DD_TRACE_STARTUP_LOGS=true
+      - DD_TRACE_DEBUG=true
+      - DD_TRACE_LOG_FILE=tracer-debug.log
+      # - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
+      # - DD_DYNAMIC_INSTRUMENTATION_ENABLED=true
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
+      # - DD_SERVICE_MAPPING=redis:other:name-with-colon
+    depends_on:
+      - datadog-simple-flask
+    labels:
+      com.datadoghq.tags.service: 'flaskapp'
+      com.datadoghq.tags.version: '2.1.1'
+      com.datadoghq.tags.env: 'development'
+      com.datadoghq.ad.logs: '[{"source":"python","service":"flaskapp"}]'
+  redis:
+    image: "redis:alpine"
+  datadog-simple-flask:
+    image: "gcr.io/datadoghq/agent:7.46.0"
+    container_name: datadog-simple-flask
+    env_file:
+      - ~/sandbox.docker.env
+    environment:
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_ENV=python
+      - DD_LOGS_ENABLED=true
+      - DD_LOG_LEVEL=TRACE
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE="name:datadog-simple-flask"
+      - DD_REMOTE_CONFIGURATION_ENABLED=true
+      - DD_APM_REPLACE_TAGS=[{"name":"redis.raw_command","pattern":".*(MSET|INCRBY).*","repl":"[REDACTED]"},{"name":"language","pattern":".*","repl":"redacted"}]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
